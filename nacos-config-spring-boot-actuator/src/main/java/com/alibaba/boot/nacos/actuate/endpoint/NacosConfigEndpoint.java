@@ -16,22 +16,15 @@
  */
 package com.alibaba.boot.nacos.actuate.endpoint;
 
+import static com.alibaba.nacos.spring.util.NacosBeanUtils.CONFIG_GLOBAL_NACOS_PROPERTIES_BEAN_NAME;
+
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-import com.alibaba.boot.nacos.common.PropertiesUtils;
-import com.alibaba.boot.nacos.config.NacosConfigConstants;
-import com.alibaba.fastjson.JSONObject;
-import com.alibaba.nacos.api.config.annotation.NacosConfigListener;
-import com.alibaba.nacos.api.config.annotation.NacosConfigurationProperties;
-import com.alibaba.nacos.spring.context.event.config.NacosConfigMetadataEvent;
-import com.alibaba.nacos.spring.util.NacosUtils;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.w3c.dom.Element;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
@@ -39,8 +32,14 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationListener;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.type.AnnotationMetadata;
+import org.w3c.dom.Element;
 
-import static com.alibaba.nacos.spring.util.NacosBeanUtils.CONFIG_GLOBAL_NACOS_PROPERTIES_BEAN_NAME;
+import com.alibaba.boot.nacos.common.PropertiesUtils;
+import com.alibaba.boot.nacos.config.NacosConfigConstants;
+import com.alibaba.nacos.api.config.annotation.NacosConfigListener;
+import com.alibaba.nacos.api.config.annotation.NacosConfigurationProperties;
+import com.alibaba.nacos.spring.context.event.config.NacosConfigMetadataEvent;
+import com.alibaba.nacos.spring.util.NacosUtils;
 
 /**
  * Actuator {@link Endpoint} to expose Nacos Config Meta Data
@@ -55,7 +54,7 @@ public class NacosConfigEndpoint
 	@Autowired
 	private ApplicationContext applicationContext;
 
-	private Map<String, JSONObject> nacosConfigMetadataMap = new HashMap<>(8);
+	private Map<String, Map<String, Object>> nacosConfigMetadataMap = new HashMap<>(8);
 
 	@ReadOperation
 	public Map<String, Object> invoke() {
@@ -82,37 +81,36 @@ public class NacosConfigEndpoint
 	public void onApplicationEvent(NacosConfigMetadataEvent event) {
 		String key = buildMetadataKey(event);
 		if (StringUtils.isNotEmpty(key) && !nacosConfigMetadataMap.containsKey(key)) {
-			JSONObject jsonObject = new JSONObject();
-			jsonObject.put("groupId", event.getGroupId());
-			jsonObject.put("dataId", event.getDataId());
+			Map<String, Object> context = new HashMap<>();
+			context.put("groupId", event.getGroupId());
+			context.put("dataId", event.getDataId());
 			if (ClassUtils.isAssignable(event.getSource().getClass(),
 					AnnotationMetadata.class)) {
-				jsonObject.put("origin", "NacosPropertySource");
-				jsonObject.put("target",
+				context.put("origin", "NacosPropertySource");
+				context.put("target",
 						((AnnotationMetadata) event.getSource()).getClassName());
 			}
 			else if (ClassUtils.isAssignable(event.getSource().getClass(),
 					NacosConfigListener.class)) {
-				jsonObject.put("origin", "NacosConfigListener");
+				context.put("origin", "NacosConfigListener");
 				Method configListenerMethod = (Method) event.getAnnotatedElement();
-				jsonObject.put("target",
-						configListenerMethod.getDeclaringClass().getName() + ":"
-								+ configListenerMethod.toString());
+				context.put("target", configListenerMethod.getDeclaringClass().getName()
+						+ ":" + configListenerMethod.toString());
 			}
 			else if (ClassUtils.isAssignable(event.getSource().getClass(),
 					NacosConfigurationProperties.class)) {
-				jsonObject.put("origin", "NacosConfigurationProperties");
-				jsonObject.put("target", event.getBeanType().getName());
+				context.put("origin", "NacosConfigurationProperties");
+				context.put("target", event.getBeanType().getName());
 			}
 			else if (ClassUtils.isAssignable(event.getSource().getClass(),
 					Element.class)) {
-				jsonObject.put("origin", "NacosPropertySource");
-				jsonObject.put("target", event.getXmlResource().toString());
+				context.put("origin", "NacosPropertySource");
+				context.put("target", event.getXmlResource().toString());
 			}
 			else {
 				throw new RuntimeException("unknown NacosConfigMetadataEvent");
 			}
-			nacosConfigMetadataMap.put(key, jsonObject);
+			nacosConfigMetadataMap.put(key, context);
 		}
 	}
 

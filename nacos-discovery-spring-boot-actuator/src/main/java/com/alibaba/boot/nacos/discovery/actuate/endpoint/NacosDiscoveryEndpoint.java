@@ -16,25 +16,26 @@
  */
 package com.alibaba.boot.nacos.discovery.actuate.endpoint;
 
+import static com.alibaba.nacos.spring.util.NacosBeanUtils.DISCOVERY_GLOBAL_NACOS_PROPERTIES_BEAN_NAME;
+
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-
-import com.alibaba.boot.nacos.common.PropertiesUtils;
-import com.alibaba.boot.nacos.discovery.NacosDiscoveryConstants;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
-import com.alibaba.nacos.api.naming.NamingService;
-import com.alibaba.nacos.spring.factory.CacheableEventPublishingNacosServiceFactory;
-import com.alibaba.nacos.spring.factory.NacosServiceFactory;
-import com.alibaba.nacos.spring.util.NacosUtils;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
 import org.springframework.context.ApplicationContext;
 
-import static com.alibaba.nacos.spring.util.NacosBeanUtils.DISCOVERY_GLOBAL_NACOS_PROPERTIES_BEAN_NAME;
+import com.alibaba.boot.nacos.common.PropertiesUtils;
+import com.alibaba.boot.nacos.discovery.NacosDiscoveryConstants;
+import com.alibaba.nacos.api.naming.NamingService;
+import com.alibaba.nacos.spring.factory.CacheableEventPublishingNacosServiceFactory;
+import com.alibaba.nacos.spring.factory.NacosServiceFactory;
+import com.alibaba.nacos.spring.util.NacosUtils;
 
 /**
  * Actuator {@link Endpoint} to expose Nacos Discovery Meta Data
@@ -61,22 +62,22 @@ public class NacosDiscoveryEndpoint {
 		NacosServiceFactory nacosServiceFactory = CacheableEventPublishingNacosServiceFactory
 				.getSingleton();
 
-		JSONArray array = new JSONArray();
+		List<Map<String, Object>> namingServersStatus = new LinkedList<>();
 		for (NamingService namingService : nacosServiceFactory.getNamingServices()) {
-			JSONObject jsonObject = new JSONObject();
+			Map<String, Object> data = new LinkedHashMap<>();
 			try {
-				jsonObject.put("servicesOfServer",
+				data.put("servicesOfServer",
 						namingService.getServicesOfServer(0, PAGE_SIZE));
-				jsonObject.put("subscribeServices", namingService.getSubscribeServices());
-				array.add(jsonObject);
+				data.put("subscribeServices", namingService.getSubscribeServices());
+				namingServersStatus.add(data);
 			}
 			catch (Exception e) {
-				jsonObject.put("serverStatus", namingService.getServerStatus() + ": "
+				data.put("serverStatus", namingService.getServerStatus() + ": "
 						+ NacosUtils.SEPARATOR + e.getMessage());
 			}
 		}
 
-		result.put("namingServersStatus", array);
+		result.put("namingServersStatus", namingServersStatus);
 		return result;
 	}
 
